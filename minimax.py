@@ -1,5 +1,6 @@
 import copy
 import tkinter as tk
+from tkinter import ttk
 from tkinter import messagebox
 import time
 
@@ -79,28 +80,31 @@ def is_game_over(current_state):
 # 4. max_value(state, depth) Function
 def max_value(current_state, depth):
     """Maximizing player's (MAX) value function in Minimax."""
-    if is_game_over(current_state) or depth == 0:
+    if is_game_over(current_state) or (depth != -1 and depth == 0):
         return evaluate(current_state)
 
     max_eval = -float('inf')
     for move in get_valid_moves(current_state):
         next_state = copy_state(current_state)
         make_move(next_state, move[0], move[1], MAX_PLAYER)
-        eval_score = min_value(next_state, depth - 1)
+        #depth handling not ideal maybe should change
+        next_depth = depth - 1 if depth != -1 else depth
+        eval_score = min_value(next_state, next_depth)
         max_eval = max(max_eval, eval_score)
     return max_eval
 
 # 5. min_value(state, depth) Function
 def min_value(current_state, depth):
     """Minimizing player's (MIN) value function in Minimax."""
-    if is_game_over(current_state) or depth == 0:
+    if is_game_over(current_state) or (depth != -1 and depth == 0):
         return evaluate(current_state)
 
     min_eval = float('inf')
     for move in get_valid_moves(current_state):
         next_state = copy_state(current_state)
         make_move(next_state, move[0], move[1], MIN_PLAYER)
-        eval_score = max_value(next_state, depth - 1)
+        next_depth = depth - 1 if depth != -1 else depth
+        eval_score = max_value(next_state, next_depth)
         min_eval = min(min_eval, eval_score)
     return min_eval
 
@@ -114,7 +118,9 @@ def find_best_move(current_state, depth):
     for move in get_valid_moves(current_state):
         next_state = copy_state(current_state)
         make_move(next_state, move[0], move[1], MAX_PLAYER)
-        eval_score = min_value(next_state, depth - 1) # MIN's response to MAX's move
+        next_depth = depth - 1 if depth != -1 else depth
+        print("Using depth: ", next_depth)
+        eval_score = min_value(next_state, next_depth) # MIN's response to MAX's move
 
         if eval_score > max_eval:
             max_eval = eval_score
@@ -134,12 +140,7 @@ if __name__ == "__main__":
     current_player = MAX_PLAYER
     depth = 3
     root = tk.Tk()
-    # root.geometry("300x300")
     root.title("Tic Tac Toe")
-
-    BOARD_SIZE = 3
-    BUTTON_SIZE = 100
-
     start_screen = tk.Frame(root)
     game_screen = tk.Frame(root)
 
@@ -147,10 +148,12 @@ if __name__ == "__main__":
         frame.grid(row=0, column=0, sticky='nsew')
 
     depth_var = tk.StringVar(value="3")
-    first_player_var = tk.StringVar(value="computer")  # default
+    first_player_var = tk.StringVar(value="computer")
 
     def start_game():
+        global depth
         depth = int(depth_var.get())
+        print("Starting gave with ", )
         first_player = first_player_var.get()
         if first_player == "computer":
             print("Computer (X) will make the first move.")
@@ -184,16 +187,40 @@ if __name__ == "__main__":
             return True
         else:
             return False
+    
+    def on_method_change(event=None):
+        selected_method = method_var.get()
+        if selected_method == "Depth Limited":
+            depth_var.set("3")
+            difficulty_frame.pack(after=method_dropdown, pady=5)
+        else:
+            depth_var.set("-1")
+            difficulty_frame.pack_forget()
+            
 
 
     # Start screen
-    welcome_label = tk.Label(start_screen, text="Welcome to Tic Tac Toe!", font=("Helvetica", 14))
+    welcome_label = tk.Label(start_screen, text="Tic Tac Toe", font=("Helvetica", 14))
     welcome_label.pack(pady=10)
 
-    difficulty_label = tk.Label(start_screen, text="Set difficulty (depth):")
+    # Search method selection
+    method_var = tk.StringVar()
+    method_label = tk.Label(start_screen, text="Choose Search Method:")
+    method_label.pack()
+
+    method_dropdown = ttk.Combobox(start_screen, textvariable=method_var, state="readonly")
+    method_dropdown['values'] = ("Depth Limited", "Complete")
+    method_dropdown.current(0)
+    method_dropdown.pack(pady=5)
+    method_dropdown.bind("<<ComboboxSelected>>", on_method_change)
+
+    difficulty_frame = tk.Frame(start_screen)
+    difficulty_label = tk.Label(difficulty_frame, text="Set difficulty (depth):")
     difficulty_label.pack()
-    difficulty_entry = tk.Entry(start_screen, textvariable=depth_var)
+    difficulty_entry = tk.Entry(difficulty_frame, textvariable=depth_var)
     difficulty_entry.pack(pady=5)
+
+    difficulty_frame.pack(after=method_dropdown, pady=5)
 
     first_player_label = tk.Label(start_screen, text="Who plays first?")
     first_player_label.pack()
@@ -209,9 +236,11 @@ if __name__ == "__main__":
     buttons = [[None for _ in range(len(state))] for _ in range(len(state))]
 
     def play_computer_turn():
+        
         best_move = find_best_move(state, depth)
         make_move(state, best_move[0], best_move[1], MAX_PLAYER)
         buttons[best_move[0]][best_move[1]].config(text="X")
+        buttons[best_move[0]][best_move[1]].config(state=tk.DISABLED)
         if gui_game_complete() == False:
             current_player = MIN_PLAYER
             current_player_label.config(text="Your turn")
@@ -221,6 +250,7 @@ if __name__ == "__main__":
         #Perform user turn
         make_move(state, row, col, MIN_PLAYER)
         buttons[row][col].config(text="O")
+        buttons[row][col].config(state=tk.DISABLED)
         if gui_game_complete() == False:
             current_player = MAX_PLAYER
             current_player_label.config(text="Computer's turn")
