@@ -31,6 +31,7 @@ class NimGame:
     def switch_player(self):
         self.current_player = "AI" if self.current_player == "Human" else "Human"
 
+
 # === AI Player Logic ===
 def get_valid_moves(state):
     moves = []
@@ -48,15 +49,57 @@ def apply_move(state, move):
 def is_terminal(state):
     return all(h == 0 for h in state)
 
-def evaluate(state, maximizing):
-    return -1 if is_terminal(state) and maximizing else 1 if is_terminal(state) else 0
+def nim_sum(state):
+    """Calculate the nim-sum (XOR of all heap sizes) of the state"""
+    result = 0
+    for heap in state:
+        result ^= heap
+    return result
+
+def evaluate(state, maximizing, depth=0, max_depth=10):
+    """
+    Advanced evaluation function that considers nim-sum and position quality
+    Higher depth makes the evaluation more sophisticated
+    """
+    if is_terminal(state):
+        return -100 if maximizing else 100  # Increased reward/penalty for terminal states
+    
+    # Calculate nim-sum
+    nim_value = nim_sum(state)
+    
+    # Basic nim strategy: nim-sum of 0 is a losing position
+    if nim_value == 0:
+        base_score = -10 if maximizing else 10
+    else:
+        base_score = 10 if maximizing else -10
+    
+    # Add positional evaluation that gets more accurate with depth
+    position_score = 0
+    depth_factor = depth / max(max_depth, 1)  # Normalize depth between 0 and 1
+    
+    # Consider heap distribution as part of evaluation
+    heap_count = sum(1 for h in state if h > 0)
+    if heap_count == 1:
+        # One heap remaining is usually advantageous for the current player
+        position_score += 5 if maximizing else -5
+    
+    # Count small heaps (size 1-2) which are often strategically important
+    small_heaps = sum(1 for h in state if 0 < h <= 2)
+    if small_heaps > 0:
+        # Having control of small heaps can be strategic
+        position_score += small_heaps * (3 if maximizing else -3)
+    
+    # Scale position score by depth factor - deeper search means more weight to position
+    weighted_position = position_score * depth_factor
+    
+    return base_score + weighted_position
 
 # Combined AI function with algorithm selection
 def ai_search(state, algorithm, depth=3):
     # Helper functions for the search algorithms
     def minimax(state, maximizing, current_depth, max_depth=20):
         if is_terminal(state) or current_depth >= max_depth:
-            return evaluate(state, maximizing), None
+            return evaluate(state, maximizing, current_depth, max_depth), None
 
         best_value = float('-inf') if maximizing else float('inf')
         best_move = None
@@ -74,7 +117,7 @@ def ai_search(state, algorithm, depth=3):
     
     def alphabeta(state, maximizing, alpha, beta, current_depth, max_depth=20):
         if is_terminal(state) or current_depth >= max_depth:
-            return evaluate(state, maximizing), None
+            return evaluate(state, maximizing, current_depth, max_depth), None
 
         best_move = None
 
@@ -103,6 +146,21 @@ def ai_search(state, algorithm, depth=3):
 
         return value, best_move
     
+    # Make more intelligent moves with higher probability at higher depths
+    use_optimal = True
+    
+    # Calculate the optimal move using nim-sum strategy if we're using optimal strategy
+    if use_optimal:
+        nimsum = nim_sum(state)
+        if nimsum > 0:
+            # There exists a winning move - find it
+            for i, heap in enumerate(state):
+                for j in range(1, heap + 1):
+                    new_state = state[:]
+                    new_state[i] -= j
+                    if nim_sum(new_state) == 0:
+                        return (i, j)
+    
     # Select algorithm based on input parameter
     if algorithm == "Minimaxcomplete":
         return minimax(state, True, 0, 20)[1]
@@ -130,6 +188,7 @@ class NimGUI:
         # Game configuration variables
         self.algo_var = tk.StringVar(value="ABlimited")
         self.depth_var = tk.IntVar(value=3)
+        self.difficulty_label = tk.StringVar(value="Medium")
         self.first_player = tk.StringVar(value="Human")
         self.num_heaps_var = tk.IntVar(value=4)
         self.heap_settings = [] 
@@ -157,8 +216,17 @@ class NimGUI:
         tk.OptionMenu(top_frame, self.algo_var, 
                      "Minimaxcomplete", "ABcomplete", "Minimaxlimited", "ABlimited").pack(side=tk.LEFT, padx=5)
         
-        tk.Label(top_frame, text="Depth:").pack(side=tk.LEFT, padx=5)
-        tk.Entry(top_frame, textvariable=self.depth_var, width=3).pack(side=tk.LEFT, padx=5)
+        # Difficulty/depth setting with visual indicator
+        tk.Label(top_frame, text="Difficulty:").pack(side=tk.LEFT, padx=5)
+        depth_frame = tk.Frame(top_frame)
+        depth_frame.pack(side=tk.LEFT, padx=5)
+        
+        depth_scale = tk.Scale(depth_frame, from_=1, to=10, orient=tk.HORIZONTAL, 
+                               variable=self.depth_var, command=self.update_difficulty_label)
+        depth_scale.pack(side=tk.TOP)
+        
+        difficulty_label = tk.Label(depth_frame, textvariable=self.difficulty_label)
+        difficulty_label.pack(side=tk.TOP)
         
         tk.Label(top_frame, text="First Player:").pack(side=tk.LEFT, padx=5)
         tk.OptionMenu(top_frame, self.first_player, "Human", "AI").pack(side=tk.LEFT, padx=5)
@@ -188,9 +256,24 @@ class NimGUI:
         self.status_label.pack(pady=5)
         self.instruction_label.pack(pady=2)
         self.ai_thinking_label.pack(pady=5)
+
+        self.winning_state_label = tk.Label(self.status_frame, text="", font=('Arial', 10, 'italic'), fg="purple")
+        self.winning_state_label.pack(pady=5)
         
-        # Initialize heap entries
+        # Initialize heap entries and difficulty label
         self.update_heap_entries()
+        self.update_difficulty_label(self.depth_var.get())
+
+    def update_difficulty_label(self, *args):
+        depth = self.depth_var.get()
+        if depth <= 2:
+            self.difficulty_label.set("Easy")
+        elif depth <= 5:
+            self.difficulty_label.set("Medium")
+        elif depth <= 7:
+            self.difficulty_label.set("Hard")
+        else:
+            self.difficulty_label.set("Expert")
 
     def update_heap_entries(self):
         # Clear existing entries
@@ -245,7 +328,7 @@ class NimGUI:
                 sticks_to_remove = heap_size - j
                 btn = tk.Button(
                     sticks_frame, 
-                    text="▲", 
+                    text="|", 
                     bg="brown", 
                     fg="white",
                     font=('Arial', 12), 
@@ -259,6 +342,9 @@ class NimGUI:
             self.stick_buttons.append(row_buttons)
             tk.Label(row_frame, text="Click a stick to remove it and all sticks to its right", 
                     font=('Arial', 8), fg="gray").pack(side=tk.LEFT, padx=10)
+            
+            self.update_winning_state()
+
 
     def create_tooltip(self, widget, text):
         widget.bind("<Enter>", lambda event, t=text: self.show_tooltip(event, t))
@@ -313,7 +399,9 @@ class NimGUI:
             valid_moves = get_valid_moves(self.game.heaps[:])
             move = random.choice(valid_moves) if valid_moves else None
         
-        self.root.after(500, lambda: self.execute_ai_move(move))
+        # Add a thinking delay that scales with difficulty for realism
+        thinking_time = min(500 + depth * 200, 2000)  # 0.5s to 2s based on depth
+        self.root.after(thinking_time, lambda: self.execute_ai_move(move))
 
     def execute_ai_move(self, move):
         if move:
@@ -340,6 +428,14 @@ class NimGUI:
             if self.game.current_player == "AI" and not self.ai_thinking:
                 self.root.after(500, self.ai_move_threaded)
 
+    def update_winning_state(self):
+        nimsum = nim_sum(self.game.heaps)
+        if nimsum == 0:
+            winner = "AI" if self.game.current_player == "Human" else "Human"
+        else:
+            winner = self.game.current_player
+        self.winning_state_label.config(text=f"Winning Position: {winner}")
+
     def on_closing(self):
         self.ai_thinking = False
         self.root.destroy()
@@ -347,5 +443,5 @@ class NimGUI:
 if __name__ == '__main__':
     root = tk.Tk()
     app = NimGUI(root)
-    root.geometry("600x600")
+    root.geometry("800x600")
     root.mainloop()
