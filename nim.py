@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import random
 import threading
+import time
 
 # === Nim Game Logic ===
 class NimGame:
@@ -11,7 +12,7 @@ class NimGame:
 
     def reset(self):
         self.heaps = self.initial_heaps[:]
-        self.current_player = "Human"
+        self.current_player = "AI"  # Changed default to AI
         self.game_over = False
         self.winner = None
 
@@ -24,15 +25,15 @@ class NimGame:
             
             if self.is_game_over():
                 self.game_over = True
-                self.winner = "AI" if self.current_player == "Human" else "Human"
+                self.winner = "Random Human" if self.current_player == "AI" else "AI"
             return True
         return False
 
     def switch_player(self):
-        self.current_player = "AI" if self.current_player == "Human" else "Human"
+        self.current_player = "Random Human" if self.current_player == "AI" else "AI"
 
 
-# === AI Player Logic ===
+# === Move Generation and Game State Logic ===
 def get_valid_moves(state):
     moves = []
     for i, heap in enumerate(state):
@@ -56,87 +57,87 @@ def nim_sum(state):
         result ^= heap
     return result
 
-def evaluate(state, maximizing, depth=0, max_depth=10):
-    """
-    Advanced evaluation function that considers nim-sum and position quality
-    Higher depth makes the evaluation more sophisticated
-    """
-    if is_terminal(state):
-        return -100 if maximizing else 100  # Increased reward/penalty for terminal states
-    
-    # Calculate nim-sum
-    nim_value = nim_sum(state)
-    
-    # Basic nim strategy: nim-sum of 0 is a losing position
-    if nim_value == 0:
-        base_score = -10 if maximizing else 10
+# === Random Human Player Logic ===
+def random_human_move(state):
+    """Generate a random move for the human player"""
+    valid_moves = get_valid_moves(state)
+    if valid_moves:
+        return random.choice(valid_moves)
+    return None
+
+def is_misere_winning(state):
+    non_empty = [h for h in state if h > 0]
+    if all(h == 1 for h in non_empty):
+        return len(non_empty) % 2 == 0
     else:
-        base_score = 10 if maximizing else -10
-    
-    # Add positional evaluation that gets more accurate with depth
-    position_score = 0
-    depth_factor = depth / max(max_depth, 1)  # Normalize depth between 0 and 1
-    
-    # Consider heap distribution as part of evaluation
-    heap_count = sum(1 for h in state if h > 0)
-    if heap_count == 1:
-        # One heap remaining is usually advantageous for the current player
-        position_score += 5 if maximizing else -5
-    
-    # Count small heaps (size 1-2) which are often strategically important
-    small_heaps = sum(1 for h in state if 0 < h <= 2)
-    if small_heaps > 0:
-        # Having control of small heaps can be strategic
-        position_score += small_heaps * (3 if maximizing else -3)
-    
-    # Scale position score by depth factor - deeper search means more weight to position
-    weighted_position = position_score * depth_factor
-    
-    return base_score + weighted_position
+        return nim_sum(state) != 0
 
-# Combined AI function with algorithm selection
+# === AI Player Logic ===
 def ai_search(state, algorithm, depth=3):
-    # Helper functions for the search algorithms
-    def minimax(state, maximizing, current_depth, max_depth=20):
-        if is_terminal(state) or current_depth >= max_depth:
-            return evaluate(state, maximizing, current_depth, max_depth), None
-
-        best_value = float('-inf') if maximizing else float('inf')
-        best_move = None
-        moves = get_valid_moves(state)
-        
-        for move in moves:
-            new_state = apply_move(state, move)
-            val, _ = minimax(new_state, not maximizing, current_depth + 1, max_depth)
-
-            if (maximizing and val > best_value) or (not maximizing and val < best_value):
-                best_value = val
-                best_move = move
-
-        return best_value, best_move
+    """AI search with different algorithms"""
     
-    def alphabeta(state, maximizing, alpha, beta, current_depth, max_depth=20):
-        if is_terminal(state) or current_depth >= max_depth:
-            return evaluate(state, maximizing, current_depth, max_depth), None
+    def evaluate(state):
+        """Evaluate the state from AI's perspective"""
+        return 100 if is_misere_winning else -100
+    
+    # Complete Minimax (no depth limit)
+    def minimaxcomplete(state, is_ai_turn):
+        if is_terminal(state):
+            # In misère Nim, if terminal state, current player loses
+            return -100 if is_ai_turn else 100, None
 
+        valid_moves = get_valid_moves(state)
+        if not valid_moves:
+            return evaluate(state, is_ai_turn), None
+            
+        if is_ai_turn:  # AI is maximizing
+            best_value = float('-inf')
+            best_move = None
+            for move in valid_moves:
+                new_state = apply_move(state, move)
+                value, _ = minimaxcomplete(new_state, False)  # Switch to opponent's turn
+                if value > best_value:
+                    best_value = value
+                    best_move = move
+            return best_value, best_move
+        else:  # Opponent is minimizing
+            best_value = float('inf')
+            best_move = None
+            for move in valid_moves:
+                new_state = apply_move(state, move)
+                value, _ = minimaxcomplete(new_state, True)  # Switch back to AI's turn
+                if value < best_value:
+                    best_value = value
+                    best_move = move
+            return best_value, best_move
+    
+    # Complete Alpha-Beta (no depth limit)
+    def alphabetacomplete(state, is_ai_turn, alpha=float('-inf'), beta=float('inf')):
+        if is_terminal(state):
+            return -100 if is_ai_turn else 100, None
+
+        valid_moves = get_valid_moves(state)
+        if not valid_moves:
+            return evaluate(state, is_ai_turn), None
+            
         best_move = None
 
-        if maximizing:
+        if is_ai_turn:  # AI is maximizing
             value = float('-inf')
-            for move in get_valid_moves(state):
+            for move in valid_moves:
                 new_state = apply_move(state, move)
-                eval_val, _ = alphabeta(new_state, False, alpha, beta, current_depth + 1, max_depth)
+                eval_val, _ = alphabetacomplete(new_state, False, alpha, beta)
                 if eval_val > value:
                     value = eval_val
                     best_move = move
                 alpha = max(alpha, value)
                 if beta <= alpha:
                     break
-        else:
+        else:  # Opponent is minimizing
             value = float('inf')
-            for move in get_valid_moves(state):
+            for move in valid_moves:
                 new_state = apply_move(state, move)
-                eval_val, _ = alphabeta(new_state, True, alpha, beta, current_depth + 1, max_depth)
+                eval_val, _ = alphabetacomplete(new_state, True, alpha, beta)
                 if eval_val < value:
                     value = eval_val
                     best_move = move
@@ -146,32 +147,91 @@ def ai_search(state, algorithm, depth=3):
 
         return value, best_move
     
-    # Make more intelligent moves with higher probability at higher depths
-    use_optimal = True
+    # Depth-limited Minimax
+    def minimaxlimited(state, is_ai_turn, current_depth, max_depth):
+        if is_terminal(state) or current_depth >= max_depth:
+            return evaluate(state), None
+
+        valid_moves = get_valid_moves(state)
+        if not valid_moves:
+            return evaluate(state), None
+            
+        if is_ai_turn:  # AI is maximizing
+            best_value = float('-inf')
+            best_move = None
+            for move in valid_moves:
+                new_state = apply_move(state, move)
+                value, _ = minimaxlimited(new_state, False, current_depth + 1, max_depth)
+                if value > best_value:
+                    best_value = value
+                    best_move = move
+            return best_value, best_move
+        else:  # Opponent is minimizing
+            best_value = float('inf')
+            best_move = None
+            for move in valid_moves:
+                new_state = apply_move(state, move)
+                value, _ = minimaxlimited(new_state, True, current_depth + 1, max_depth)
+                if value < best_value:
+                    best_value = value
+                    best_move = move
+            return best_value, best_move
     
-    # Calculate the optimal move using nim-sum strategy if we're using optimal strategy
-    if use_optimal:
-        nimsum = nim_sum(state)
-        if nimsum > 0:
-            # There exists a winning move - find it
-            for i, heap in enumerate(state):
-                for j in range(1, heap + 1):
-                    new_state = state[:]
-                    new_state[i] -= j
-                    if nim_sum(new_state) == 0:
-                        return (i, j)
+    # Depth-limited Alpha-Beta
+    def alphabetalimited(state, is_ai_turn, alpha, beta, current_depth, max_depth):
+        if is_terminal(state) or current_depth >= max_depth:
+            return evaluate(state), None
+
+        valid_moves = get_valid_moves(state)
+        if not valid_moves:
+            return evaluate(state), None
+            
+        best_move = None
+
+        if is_ai_turn:  # AI is maximizing
+            value = float('-inf')
+            for move in valid_moves:
+                new_state = apply_move(state, move)
+                eval_val, _ = alphabetalimited(new_state, False, alpha, beta, current_depth + 1, max_depth)
+                if eval_val > value:
+                    value = eval_val
+                    best_move = move
+                alpha = max(alpha, value)
+                if beta <= alpha:
+                    break
+        else:  # Opponent is minimizing
+            value = float('inf')
+            for move in valid_moves:
+                new_state = apply_move(state, move)
+                eval_val, _ = alphabetalimited(new_state, True, alpha, beta, current_depth + 1, max_depth)
+                if eval_val < value:
+                    value = eval_val
+                    best_move = move
+                beta = min(beta, value)
+                if beta <= alpha:
+                    break
+
+        return value, best_move
     
-    # Select algorithm based on input parameter
+    # === Select algorithm based on input parameter ===
     if algorithm == "Minimaxcomplete":
-        return minimax(state, True, 0, 20)[1]
+        value, move = minimaxcomplete(state, True)
+        return move
+
     elif algorithm == "ABcomplete":
-        return alphabeta(state, True, float('-inf'), float('inf'), 0, 20)[1]
+        value, move = alphabetacomplete(state, True)
+        return move
+
     elif algorithm == "Minimaxlimited":
-        return minimax(state, True, 0, depth)[1]
+        value, move = minimaxlimited(state, True, 0, depth)
+        return move
+
     elif algorithm == "ABlimited":
-        return alphabeta(state, True, float('-inf'), float('inf'), 0, depth)[1]
+        value, move = alphabetalimited(state, True, float('-inf'), float('inf'), 0, depth)
+        return move
     
     # Fallback to random move
+    import random
     valid_moves = get_valid_moves(state)
     return random.choice(valid_moves) if valid_moves else None
 
@@ -179,17 +239,18 @@ def ai_search(state, algorithm, depth=3):
 class NimGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Nim Game")
+        self.root.title("Nim Game - AI vs Random Human")
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.game = NimGame()
         self.ai_thinking = False
+        self.human_thinking = False
         
         # Game configuration variables
         self.algo_var = tk.StringVar(value="ABlimited")
         self.depth_var = tk.IntVar(value=3)
         self.difficulty_label = tk.StringVar(value="Medium")
-        self.first_player = tk.StringVar(value="Human")
+        self.first_player = tk.StringVar(value="AI")
         self.num_heaps_var = tk.IntVar(value=4)
         self.heap_settings = [] 
         
@@ -204,7 +265,6 @@ class NimGUI:
         
         # Setup UI components
         self.setup_ui()
-        self.stick_buttons = []
         self.update_game_display()
 
     def setup_ui(self):
@@ -212,27 +272,27 @@ class NimGUI:
         top_frame = tk.Frame(self.config_frame)
         top_frame.pack(fill=tk.X, pady=5)
         
-        tk.Label(top_frame, text="Algorithm:").pack(side=tk.LEFT, padx=5)
+        tk.Label(top_frame, text="AI Algorithm:").pack(side=tk.LEFT, padx=5)
         tk.OptionMenu(top_frame, self.algo_var, 
                      "Minimaxcomplete", "ABcomplete", "Minimaxlimited", "ABlimited").pack(side=tk.LEFT, padx=5)
         
         # Difficulty/depth setting with visual indicator
-        tk.Label(top_frame, text="Difficulty:").pack(side=tk.LEFT, padx=5)
+        tk.Label(top_frame, text="Depth (for limited search):").pack(side=tk.LEFT, padx=5)
         depth_frame = tk.Frame(top_frame)
         depth_frame.pack(side=tk.LEFT, padx=5)
         
         depth_scale = tk.Scale(depth_frame, from_=1, to=10, orient=tk.HORIZONTAL, 
-                               variable=self.depth_var, command=self.update_difficulty_label)
+                              variable=self.depth_var, command=self.update_difficulty_label)
         depth_scale.pack(side=tk.TOP)
         
         difficulty_label = tk.Label(depth_frame, textvariable=self.difficulty_label)
         difficulty_label.pack(side=tk.TOP)
         
         tk.Label(top_frame, text="First Player:").pack(side=tk.LEFT, padx=5)
-        tk.OptionMenu(top_frame, self.first_player, "Human", "AI").pack(side=tk.LEFT, padx=5)
+        tk.OptionMenu(top_frame, self.first_player, "AI", "Random Human").pack(side=tk.LEFT, padx=5)
         
         tk.Button(top_frame, text="Start Game", command=self.start_game, 
-                  bg="green", fg="white", font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=20)
+                 bg="green", fg="white", font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=20)
 
         # Heap configuration
         heap_config_frame = tk.Frame(self.config_frame)
@@ -240,22 +300,24 @@ class NimGUI:
         
         tk.Label(heap_config_frame, text="Number of Rows:").pack(side=tk.LEFT, padx=5)
         num_heaps_spinner = tk.Spinbox(heap_config_frame, from_=1, to=10, width=3, 
-                                       textvariable=self.num_heaps_var, command=self.update_heap_entries)
+                                      textvariable=self.num_heaps_var, command=self.update_heap_entries)
         num_heaps_spinner.pack(side=tk.LEFT, padx=5)
         
         self.heap_entry_frame = tk.Frame(self.config_frame)
         self.heap_entry_frame.pack(fill=tk.X, pady=5)
         
         # Status indicators
-        self.status_label = tk.Label(self.status_frame, text="Welcome to Nim!", font=('Arial', 14))
+        self.status_label = tk.Label(self.status_frame, text="Welcome to Nim Game - AI vs Random Human!", font=('Arial', 14))
         self.instruction_label = tk.Label(self.status_frame, 
-                                         text="Instructions: Click on a stick to remove it and all sticks to its right.",
+                                         text="Game is completely automated - watch AI and Random Human play!",
                                          font=('Arial', 10), fg="blue")
         self.ai_thinking_label = tk.Label(self.status_frame, text="", font=('Arial', 12), fg="green")
+        self.human_move_label = tk.Label(self.status_frame, text="", font=('Arial', 12), fg="blue")
         
         self.status_label.pack(pady=5)
         self.instruction_label.pack(pady=2)
-        self.ai_thinking_label.pack(pady=5)
+        self.ai_thinking_label.pack(pady=2)
+        self.human_move_label.pack(pady=2)
 
         self.winning_state_label = tk.Label(self.status_frame, text="", font=('Arial', 10, 'italic'), fg="purple")
         self.winning_state_label.pack(pady=5)
@@ -296,23 +358,22 @@ class NimGUI:
     def start_game(self):
         heap_sizes = [var.get() for var in self.heap_settings]
         self.game = NimGame(heap_sizes)
-        self.update_game_display()
+        self.human_move_label.config(text="")
+        self.ai_thinking_label.config(text="")
         
-        if self.first_player.get() == "AI":
-            self.game.current_player = "AI"
-            self.status_label.config(text="AI's Turn")
-            self.root.update()
-            self.root.after(100, self.ai_move_threaded)
+        # Set first player
+        self.game.current_player = self.first_player.get()
+        
+        self.update_game_display()
+        self.make_next_move()
 
     def update_game_display(self):
         # Clear existing game frame
         for widget in self.game_frame.winfo_children():
             widget.destroy()
-        self.stick_buttons = []
         
         for i, heap_size in enumerate(self.game.heaps):
             if heap_size == 0:
-                self.stick_buttons.append([])
                 continue
                 
             row_frame = tk.Frame(self.game_frame)
@@ -323,58 +384,58 @@ class NimGUI:
             sticks_frame = tk.Frame(row_frame)
             sticks_frame.pack(side=tk.LEFT)
             
-            row_buttons = []
             for j in range(heap_size):
-                sticks_to_remove = heap_size - j
-                btn = tk.Button(
+                stick_label = tk.Label(
                     sticks_frame, 
                     text="|", 
                     bg="brown", 
                     fg="white",
                     font=('Arial', 12), 
                     width=2,
-                    command=lambda heap=i, count=sticks_to_remove: self.human_move(heap, count)
+                    padx=1,
+                    relief=tk.RAISED
                 )
-                btn.grid(row=0, column=j, padx=1)
-                self.create_tooltip(btn, f"Remove {sticks_to_remove} stick(s)")
-                row_buttons.append(btn)
+                stick_label.grid(row=0, column=j, padx=1)
             
-            self.stick_buttons.append(row_buttons)
-            tk.Label(row_frame, text="Click a stick to remove it and all sticks to its right", 
-                    font=('Arial', 8), fg="gray").pack(side=tk.LEFT, padx=10)
+            tk.Label(row_frame, text=f"{heap_size} sticks", 
+                   font=('Arial', 8), fg="gray").pack(side=tk.LEFT, padx=10)
             
-            self.update_winning_state()
+        self.update_winning_state()
+        self.status_label.config(text=f"{self.game.current_player}'s Turn")
 
-
-    def create_tooltip(self, widget, text):
-        widget.bind("<Enter>", lambda event, t=text: self.show_tooltip(event, t))
-        widget.bind("<Leave>", self.hide_tooltip)
-
-    def show_tooltip(self, event, text):
-        x, y, _, _ = event.widget.bbox("insert")
-        x += event.widget.winfo_rootx() + 25
-        y += event.widget.winfo_rooty() + 20
-        
-        self.tooltip = tk.Toplevel(event.widget)
-        self.tooltip.wm_overrideredirect(True)
-        self.tooltip.wm_geometry(f"+{x}+{y}")
-        
-        label = tk.Label(self.tooltip, text=text, background="#ffffe0", relief="solid", borderwidth=1)
-        label.pack()
-
-    def hide_tooltip(self, event):
-        if hasattr(self, "tooltip"):
-            self.tooltip.destroy()
-
-    def human_move(self, heap, count):
-        if self.game.current_player != "Human" or self.ai_thinking:
+    def make_next_move(self):
+        """Determine which player's turn it is and make the appropriate move"""
+        if self.game.game_over:
             return
             
-        if not self.game.make_move(heap, count):
-            messagebox.showerror("Invalid Move", "Try another move")
+        if self.game.current_player == "AI":
+            self.root.after(500, self.ai_move_threaded)
+        else:  # Random Human's turn
+            self.root.after(500, self.human_move_threaded)
+
+    def human_move_threaded(self):
+        if self.game.current_player != "Random Human" or self.game.game_over:
             return
             
-        self.post_move()
+        self.human_thinking = True
+        self.human_move_label.config(text="Random Human is thinking...")
+        self.root.update()
+        
+        # Add small delay for visual effect
+        self.root.after(1000, self.execute_human_move)
+
+    def execute_human_move(self):
+        move = random_human_move(self.game.heaps[:])
+        
+        if move:
+            heap_index, count = move
+            self.game.make_move(heap_index, count)
+            self.human_thinking = False
+            self.human_move_label.config(text=f"Random Human removed {count} stick(s) from row {heap_index+1}")
+            self.post_move()
+        else:
+            self.human_thinking = False
+            self.human_move_label.config(text="Random Human couldn't find a move")
 
     def ai_move_threaded(self):
         if self.game.current_player != "AI" or self.game.game_over:
@@ -399,8 +460,10 @@ class NimGUI:
             valid_moves = get_valid_moves(self.game.heaps[:])
             move = random.choice(valid_moves) if valid_moves else None
         
-        # Add a thinking delay that scales with difficulty for realism
-        thinking_time = min(500 + depth * 200, 2000)  # 0.5s to 2s based on depth
+        # Add a thinking delay for realism
+        # Make complete algorithms take longer as they do more computation
+        is_complete = "complete" in algorithm
+        thinking_time = 1500 if is_complete else 500
         self.root.after(thinking_time, lambda: self.execute_ai_move(move))
 
     def execute_ai_move(self, move):
@@ -421,27 +484,27 @@ class NimGUI:
             messagebox.showinfo("Game Over", f"{self.game.winner} wins! The player who took the last stick ({self.game.current_player}) lost.")
             self.status_label.config(text=f"Game Over! {self.game.winner} wins!")
             self.ai_thinking_label.config(text="")
+            self.human_move_label.config(text="")
         else:
             self.game.switch_player()
             self.status_label.config(text=f"{self.game.current_player}'s Turn")
-            
-            if self.game.current_player == "AI" and not self.ai_thinking:
-                self.root.after(500, self.ai_move_threaded)
+            self.make_next_move()
 
     def update_winning_state(self):
         nimsum = nim_sum(self.game.heaps)
         if nimsum == 0:
-            winner = "AI" if self.game.current_player == "Human" else "Human"
+            winner = "Random Human" if self.game.current_player == "AI" else "AI"
         else:
             winner = self.game.current_player
         self.winning_state_label.config(text=f"Winning Position: {winner}")
 
     def on_closing(self):
         self.ai_thinking = False
+        self.human_thinking = False
         self.root.destroy()
 
 if __name__ == '__main__':
     root = tk.Tk()
     app = NimGUI(root)
-    root.geometry("800x600")
+    root.geometry("1000x600")
     root.mainloop()
