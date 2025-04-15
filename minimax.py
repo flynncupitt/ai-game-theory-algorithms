@@ -2,7 +2,6 @@ import copy
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-import time
 
 #testing testing
 
@@ -119,7 +118,6 @@ def find_best_move(current_state, depth):
         next_state = copy_state(current_state)
         make_move(next_state, move[0], move[1], MAX_PLAYER)
         next_depth = depth - 1 if depth != -1 else depth
-        print("Using depth: ", next_depth)
         eval_score = min_value(next_state, next_depth) # MIN's response to MAX's move
 
         if eval_score > max_eval:
@@ -153,7 +151,6 @@ if __name__ == "__main__":
     def start_game():
         global depth
         depth = int(depth_var.get())
-        print("Starting gave with ", )
         first_player = first_player_var.get()
         if first_player == "computer":
             print("Computer (X) will make the first move.")
@@ -166,6 +163,8 @@ if __name__ == "__main__":
             current_player_label.config(text="Your turn")
         
         game_screen.tkraise()
+
+        
 
     def gui_game_complete():
         if is_game_over(state):
@@ -236,7 +235,7 @@ if __name__ == "__main__":
     buttons = [[None for _ in range(len(state))] for _ in range(len(state))]
 
     def play_computer_turn():
-        
+        current_player_label.config(text="Thinking...")
         best_move = find_best_move(state, depth)
         make_move(state, best_move[0], best_move[1], MAX_PLAYER)
         buttons[best_move[0]][best_move[1]].config(text="X")
