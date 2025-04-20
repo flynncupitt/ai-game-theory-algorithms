@@ -300,7 +300,7 @@ class NimGUI:
         heap_config_frame.pack(fill=tk.X, pady=10)
         
         tk.Label(heap_config_frame, text="Number of Rows:").pack(side=tk.LEFT, padx=5)
-        num_heaps_spinner = tk.Spinbox(heap_config_frame, from_=1, to=10, width=3, 
+        num_heaps_spinner = tk.Spinbox(heap_config_frame, from_=1, to=20, width=3, 
                                       textvariable=self.num_heaps_var, command=self.update_heap_entries)
         num_heaps_spinner.pack(side=tk.LEFT, padx=5)
         
@@ -342,18 +342,18 @@ class NimGUI:
         # Clear existing entries
         for widget in self.heap_entry_frame.winfo_children():
             widget.destroy()
-        
+    
         self.heap_settings = []
         num_heaps = self.num_heaps_var.get()
         default_sizes = [2*i + 1 for i in range(num_heaps)]
-        
+    
         for i in range(num_heaps):
             frame = tk.Frame(self.heap_entry_frame)
             frame.pack(side=tk.LEFT, padx=5)
-            
+        
             tk.Label(frame, text=f"Row {i+1}:").pack()
             heap_var = tk.IntVar(value=default_sizes[i])
-            tk.Spinbox(frame, from_=1, to=20, width=3, textvariable=heap_var).pack()
+            tk.Label(frame, text=str(default_sizes[i]), width=3).pack()
             self.heap_settings.append(heap_var)
 
     def start_game(self):
@@ -464,7 +464,7 @@ class NimGUI:
         # AI has reccommended adding a thinking delay
         # Make complete algorithms take longer as they do more computation to make the user experience appear more realistic
         is_complete = "complete" in algorithm
-        thinking_time = 1500 if is_complete else 500
+        thinking_time = 100 if is_complete else 50
         self.root.after(thinking_time, lambda: self.execute_ai_move(move))
 
     def execute_ai_move(self, move):
