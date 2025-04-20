@@ -77,9 +77,9 @@ def is_misere_winning(state):
 def ai_search(state, algorithm, depth=3):
     """AI search with different algorithms"""
     
-    def evaluate(state):
+    def evaluate(state, is_ai_turn):
         """Evaluate the state from AI's perspective"""
-        return 100 if is_misere_winning else -100
+        return 100 if is_misere_winning(state) and is_ai_turn else -100
     
     # Complete Minimax (no depth limit)
     def minimaxcomplete(state, is_ai_turn):
