@@ -1,3 +1,5 @@
+import random
+import time
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
@@ -29,19 +31,23 @@ if __name__ == "__main__":
         global ai
         depth = int(depth_var.get())
         first_player = first_player_var.get()
+        game_screen.tkraise()
         if first_player == "computer":
             print("Computer (X) will make the first move.")
-            current_player_label.config(text="Computer's turn")
+            current_player_label.config(text="Computer thinking...")
+            root.update()
             play_computer_turn()
         else:
             print("You (O) will make the first move.")
-            current_player_label.config(text="Your turn")
+            current_player_label.config(text="Random thinking...")
+            root.update()
+            play_random_turn()
         
         if algorithm_var.get() == 'alpha_beta':
             print("alpha beta chosen")
             ai = AlphaBeta()
 
-        game_screen.tkraise()
+        
 
     def gui_game_complete():
         if is_game_over(state):
@@ -74,13 +80,29 @@ if __name__ == "__main__":
             difficulty_frame.pack_forget()
  
     def play_computer_turn():
-        current_player_label.config(text="Thinking...")
+        current_player_label.config(text="Computer thinking...")
         best_move = ai.find_best_move(state, depth)
+        time.sleep(0.5)
         make_move(state, best_move[0], best_move[1], MAX_PLAYER)
         buttons[best_move[0]][best_move[1]].config(text="X")
         buttons[best_move[0]][best_move[1]].config(state=tk.DISABLED)
+        root.update()
         if gui_game_complete() == False:
-            current_player_label.config(text="Your turn")
+            current_player_label.config(text="Random thinking...")
+            play_random_turn()
+
+    def play_random_turn():
+        valid_moves = [(i, j) for i in range(len(state)) for j in range(len(state)) if state[i][j] == EMPTY_CELL]
+        if valid_moves:
+            row, col = random.choice(valid_moves)
+            time.sleep(0.5)
+            make_move(state, row, col, MIN_PLAYER)
+            buttons[row][col].config(text="O")
+            buttons[row][col].config(state=tk.DISABLED)
+            root.update()
+            if gui_game_complete() == False:
+                current_player_label.config(text="Computer thinking...")
+                play_computer_turn()
         
 
     def on_button_click(row, col):
@@ -89,7 +111,7 @@ if __name__ == "__main__":
         buttons[row][col].config(text="O")
         buttons[row][col].config(state=tk.DISABLED)
         if gui_game_complete() == False:
-            current_player_label.config(text="Computer's turn")
+            current_player_label.config(text="Computer thinking...")
             play_computer_turn()
 
     # Start screen
