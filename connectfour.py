@@ -161,27 +161,27 @@ class ConnectFourGUI:
         self.difficulty = self.difficulty_var.get()
         self.first_player = self.first_var.get()
         self.ai_algo = self.algo_var.get()
-        
+    
         # Update button states
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.game_active = True
-        
+    
         # Destroy any existing board elements
         if self.board_canvas:
             self.board_canvas.destroy()
-        
+    
         # Remove any game over elements
         for widget in self.board_frame.winfo_children():
             widget.destroy()
-            
+        
         # Create a new game
         self.game = ConnectFour(self.rows, self.cols)
-        
+    
         # Create the board canvas
         canvas_width = min(600, self.cols * 80)
         canvas_height = min(500, self.rows * 80)
-        
+    
         self.board_canvas = tk.Canvas(
             self.board_frame, 
             width=canvas_width,
@@ -189,10 +189,13 @@ class ConnectFourGUI:
             bg="blue"
         )
         self.board_canvas.pack()
-        
+    
+        # Force an update to ensure the canvas is drawn
+        self.root.update_idletasks()
+    
         # Set up click handlers for human player
         self.board_canvas.bind("<Button-1>", self.handle_click)
-        
+    
         # Determine who goes first
         if self.first_player == "AI":
             self.game.current_player = self.ai_player  # AI is Yellow (2)
@@ -202,9 +205,9 @@ class ConnectFourGUI:
             self.game.current_player = self.human_player  # Human goes first (Red)
             self.waiting_for_human = True
             self.status_label.config(text="Game started. Human player's turn (Red).")
-        
+    
         self.update_canvas()
-        
+    
         # Start the game loop
         self.play_turn()
         
@@ -298,8 +301,16 @@ class ConnectFourGUI:
     
     def update_canvas(self):
         self.board_canvas.delete("all")
+    
+        # Get the actual canvas dimensions, or use the intended dimensions if not yet available
         canvas_width = self.board_canvas.winfo_width()
         canvas_height = self.board_canvas.winfo_height()
+    
+        # If the canvas hasn't been fully rendered yet, use the intended dimensions
+        if canvas_width <= 1:
+            canvas_width = min(600, self.cols * 80)
+        if canvas_height <= 1:
+            canvas_height = min(500, self.rows * 80)
 
         cell_width = canvas_width / self.cols
         cell_height = canvas_height / self.rows
