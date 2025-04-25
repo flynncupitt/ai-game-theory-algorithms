@@ -24,6 +24,7 @@ class ConnectFour:
     def switch_player(self):
         self.current_player = 3 - self.current_player
 
+    #AI has helped generate this check_winner function to check for win conditions in all possible directions
     def check_winner(self):
         for r in range(self.rows):
             for c in range(self.cols - 3):
@@ -370,6 +371,7 @@ class ConnectFourGUI:
             
         return move
 
+#Ai has helped complete this evaluate function which is used to score non-terminal board positions by considering mutiple strategic factors
 def evaluate(board: ConnectFour, player):
     """Evaluation function for depth-limited search."""
     opponent = 3 - player
@@ -437,7 +439,7 @@ def evaluate(board: ConnectFour, player):
     score -= count_patterns(opponent, 3, 0) * 15    # Block opponent three in a row
     
     return score
-
+#AI has helped to complete this minimax_limited function
 def minimax_limited(board: ConnectFour, depth, maximizing, player):
     winner = board.check_winner()
     if winner == player:
@@ -480,6 +482,7 @@ def minimax_limited(board: ConnectFour, depth, maximizing, player):
                 best_move = move
         return best_move, best_score
 
+#AI has helped to complete this alpha_limited function
 def alphabeta_limited(board: ConnectFour, depth, maximizing, alpha, beta, player):
     winner = board.check_winner()
     if winner == player:
