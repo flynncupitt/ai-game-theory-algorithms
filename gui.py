@@ -1,6 +1,7 @@
 import tkinter as tk
+from minimax import Minimax
 from settings import BOARD_SIZE, TILE_SIZE
-from game import get_tiger_pos, handle_dog_turn, handle_tiger_turn, init_state, get_turn
+from game import get_tiger_pos, init_state, get_turn, set_tiger_pos, set_turn, try_kill_dogs
 class GameGUI:
     def __init__(self, root):
         self.root = root
@@ -71,15 +72,68 @@ class GameGUI:
         col = event.x // TILE_SIZE
 
         if get_turn() == 'tiger':
-            handle_tiger_turn(self, row, col)
+            self.handle_tiger_turn(self.board, row, col)
         else:
-            handle_dog_turn(self, row, col)
+            self.handle_dog_turn(self.board, row, col)
+    #need to track killed dogs
+    def make_move(self, board_state, row, col, player, chosenDog=None):
+        if player == 'tiger':
+            # self.handle_tiger_turn(board_state, row, col)
+            tr, tc = get_tiger_pos()
+            board_state[tr][tc] = None
+            board_state[row][col] = 'tiger'
+            set_tiger_pos((row, col))
+            try_kill_dogs(board_state)
+            set_turn('dog')
+            
+        elif player == 'dog' and chosenDog:
+            # self.handle_dog_turn(board_state, row, col)
+            sr, sc = chosenDog
+            board_state[row][col] = 'dog'
+            board_state[sr][sc] = None
+            self.selected = None
+            set_turn('tiger')
+
+# DO NEXT: pass killed dogs var to make_move, but turn handlers need to reflect in gui for NON SIMULATED moves
+    # def handle_tiger_turn(self, board_state, row, col):
+    #     print("playing tiger turn")
+    #     tr, tc = get_tiger_pos()
+    #     if abs(tr - row) <= 1 and abs(tc - col) <= 1 and board_state[row][col] is None:
+    #         board_state[tr][tc] = None
+    #         board_state[row][col] = 'tiger' #should mean tiger move saved to board
+    #         set_tiger_pos((row, col))
+    #         print("New tiger position:", get_tiger_pos())
+    #         try_kill_dogs(board_state)
+    #         set_turn('dog')  # Switch turn to dog
+    #         self.update_current_player_label()  # Update the label
+    #         self.draw_board()
+    #         #check_win_conditions(self)
+
+    # def handle_dog_turn(self, board_state, row, col):
+    #     print("playing dog turn")
+    #     if self.selected:
+    #         sr, sc = self.selected
+    #         if abs(sr - row) <= 1 and abs(sc - col) <= 1 and board_state[row][col] is None:
+    #             board_state[row][col] = 'dog'
+    #             board_state[sr][sc] = None
+    #             self.selected = None
+    #             set_turn('tiger')
+    #             self.update_current_player_label()  # Update the label
+    #             self.draw_board()
+    #             self.highlight_selected()
+    #             #check_win_conditions(self)
+    #     elif board_state[row][col] == 'dog':
+    #         self.selected = (row, col)
+    #         self.draw_board()
+    #         self.highlight_selected()
+
 
 if __name__ == '__main__':
     root = tk.Tk()
     root.title("Tiger vs Dogs")
     game = GameGUI(root)
-
+    state = game.board
+    minimax = Minimax(game)
     # Initialize board: place tiger in center, dogs around edges
     center = BOARD_SIZE // 2
     game.board = [['dog' if i == 0 or i == BOARD_SIZE - 1 or j == 0 or j == BOARD_SIZE - 1 else None
@@ -87,5 +141,6 @@ if __name__ == '__main__':
     game.board[center][center] = 'tiger'
     game.draw_board()
     game.highlight_selected()
-
+    best_move = minimax.find_best_move(4)
+    print("Best move for Tiger:", best_move)  # Example usage of Minimax
     root.mainloop()
