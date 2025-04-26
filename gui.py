@@ -6,23 +6,20 @@ from alpha_beta import AlphaBeta
 from minimax import Minimax
 from game_setup import GameSetup
 from settings import BOARD_SIZE, TILE_SIZE, DOGS_REQUIRED_TO_WIN
-from game import count_dogs_killed, evaluate, find_random_dog, find_tiger, init_state, get_turn, set_turn, try_kill_dogs
+from game import count_dogs_killed, evaluate, find_tiger, init_state, get_turn, set_turn, try_kill_dogs
+
 class GameGUI:
     def __init__(self, root):
         self.root = root
         self.canvas = tk.Canvas(root, width=BOARD_SIZE*TILE_SIZE, height=BOARD_SIZE*TILE_SIZE)
         self.canvas.pack()
 
-        # Add a label to display the current player
         self.current_player_label = tk.Label(root, text="Current Player: Tiger (Thinking...)", font=("Arial", 14))
         self.current_player_label.pack()
         self.dogs_killed_label = tk.Label(root, text=f"Dogs killed: 0/{DOGS_REQUIRED_TO_WIN}", font=("Arial", 14))
         self.dogs_killed_label.pack()
 
         self.board = init_state()
-        # self.tiger_pos = (2, 2)
-        # self.dogs_killed = 0
-        # self.turn = 'tiger'
         self.draw_board()
         self.selected = None
         self.ai = Minimax(self)
@@ -52,23 +49,19 @@ class GameGUI:
         self.canvas.create_oval(x-r, y-r, x+r, y+r, fill=color, outline="black")
 
     def update_current_player_label(self):
-        """Update the label to show the current player."""
         if get_turn() == 'tiger':
             self.current_player_label.config(text="Current Player: Tiger (Thinking...)")
         else:
             self.current_player_label.config(text="Current Player: Dog")
 
-    #need to track killed dogs
     def make_move(self, board_state, row, col, player, chosenDog=None):
         if player == 'tiger':
-            # self.handle_tiger_turn(board_state, row, col)
             tr, tc = find_tiger(board_state)
             board_state[tr][tc] = None
             board_state[row][col] = 'tiger'
             try_kill_dogs(board_state)
             set_turn('dog')
        
-
     def play_tiger_turn(self):
         root.update()
         time.sleep(0.3)
@@ -80,15 +73,15 @@ class GameGUI:
                     messagebox.showinfo("Game Over", "Tiger wins!")
                     self.root.quit()
         else:
-            set_turn('dog')  # Switch turn to dog
-            self.update_current_player_label()  # Update the label
+            set_turn('dog')
+            self.update_current_player_label()
             self.draw_board()
             self.play_dog_turn(self.board)
 
     def play_dog_turn(self, board_state):
         if evaluate(self.board) == -10:
-                    messagebox.showinfo("Game Over", "Dogs win!")
-                    self.root.quit()
+            messagebox.showinfo("Game Over", "Dogs win!")
+            self.root.quit()
         else:
             root.update()
             time.sleep(1)
@@ -110,25 +103,21 @@ class GameGUI:
                     messagebox.showinfo("Game Over", "Dogs wins!")
                     self.root.quit()
                 set_turn('tiger')
-                self.update_current_player_label()  # Update the label
+                self.update_current_player_label()
                 self.draw_board()
                 root.update()
                 self.play_tiger_turn()
-                #check_win_conditions(self)
             else:
                 print("Invalid dog move")
         
 def start_game_with_settings(settings):
     game = GameGUI(root)
-
-    # Setup initial board
     center = BOARD_SIZE // 2
     game.board = [['dog' if i == 0 or i == BOARD_SIZE - 1 or j == 0 or j == BOARD_SIZE - 1 else None
                    for j in range(BOARD_SIZE)] for i in range(BOARD_SIZE)]
     game.board[center][center] = 'tiger'
     game.draw_board()
 
-    # Create minimax with settings
     if settings['algorithm'] == "Minimax":
         game.ai = Minimax(game)
     else:
@@ -140,14 +129,13 @@ def start_game_with_settings(settings):
         game.depth = -1
 
     if settings['first_player'] == "Tiger":
-        root.after(500, game.play_tiger_turn)  # start game after half sec
+        root.after(500, game.play_tiger_turn)
     else:
          root.after(500, lambda: game.play_dog_turn(game.board))
-    # Otherwise, wait for user (Dogs) to move
 
 if __name__ == '__main__':
     root = tk.Tk()
-    root.withdraw()  # Hide root while setup screen shows
+    root.withdraw()
 
     def show_main_window(settings):
         root.deiconify()
