@@ -26,6 +26,7 @@ if __name__ == "__main__":
     depth_var = tk.StringVar(value="3")
     first_player_var = tk.StringVar(value="computer")
 
+    # Initialise game with user settings
     def start_game():
         global depth
         global ai
@@ -47,8 +48,8 @@ if __name__ == "__main__":
             print("alpha beta chosen")
             ai = AlphaBeta()
 
-        
-
+    
+    # Update GUI when game is complete
     def gui_game_complete():
         if is_game_over(state):
             print("Game is over")
@@ -70,6 +71,7 @@ if __name__ == "__main__":
         else:
             return False
     
+    # Helper function for starter screen
     def on_method_change(event=None):
         selected_method = method_var.get()
         if selected_method == "Depth Limited":
@@ -79,6 +81,7 @@ if __name__ == "__main__":
             depth_var.set("-1")
             difficulty_frame.pack_forget()
  
+    # Handle moves by computer
     def play_computer_turn():
         current_player_label.config(text="Computer thinking...")
         best_move = ai.find_best_move(state, depth)
@@ -91,6 +94,7 @@ if __name__ == "__main__":
             current_player_label.config(text="Random thinking...")
             play_random_turn()
 
+    # Choose a random move and play it
     def play_random_turn():
         valid_moves = [(i, j) for i in range(len(state)) for j in range(len(state)) if state[i][j] == EMPTY_CELL]
         if valid_moves:
@@ -103,16 +107,8 @@ if __name__ == "__main__":
             if gui_game_complete() == False:
                 current_player_label.config(text="Computer thinking...")
                 play_computer_turn()
-        
 
-    def on_button_click(row, col):
-        #Perform user turn
-        make_move(state, row, col, MIN_PLAYER)
-        buttons[row][col].config(text="O")
-        buttons[row][col].config(state=tk.DISABLED)
-        if gui_game_complete() == False:
-            current_player_label.config(text="Computer thinking...")
-            play_computer_turn()
+    ### GUI Setup ###
 
     # Start screen
     welcome_label = tk.Label(start_screen, text="Tic Tac Toe", font=("Helvetica", 14))
@@ -129,6 +125,7 @@ if __name__ == "__main__":
     method_dropdown.pack(pady=5)
     method_dropdown.bind("<<ComboboxSelected>>", on_method_change)
 
+    # Difficulty selection
     difficulty_frame = tk.Frame(start_screen)
     difficulty_label = tk.Label(difficulty_frame, text="Set difficulty (depth):")
     difficulty_label.pack()
@@ -159,7 +156,7 @@ if __name__ == "__main__":
     current_player_label.grid(row=0, column=0, columnspan=3, pady=(10, 20))
     buttons = [[None for _ in range(len(state))] for _ in range(len(state))]
 
-    
+    # Creating buttons for the game grid
     for i in range(len(state)):
         for j in range(len(state)):
             btn = tk.Button(
@@ -168,7 +165,6 @@ if __name__ == "__main__":
                 font=("Helvetica", 24),
                 width=4,
                 height=2,
-                command=lambda row=i, col=j: on_button_click(row, col)
             )
             btn.grid(row=i+1, column=j, padx=5, pady=5)
             buttons[i][j] = btn

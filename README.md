@@ -1,4 +1,4 @@
 # Tic Tac Toe
 
-##Instructions
+## Instructions
 Run the gui.py file
