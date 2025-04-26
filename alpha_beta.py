@@ -3,7 +3,7 @@ import sys
 
 from game import evaluate, find_tiger
 # from game import is_game_over, evaluate, get_valid_moves, make_move
-class Minimax:
+class AlphaBeta:
     def __init__(self, game):
         """Initialize the Minimax algorithm with the game GUI."""
         self.game = game
@@ -48,7 +48,7 @@ class Minimax:
         return valid_moves
     
     # 4. max_value(state, depth) Function
-    def max_value(self, state, depth):
+    def max_value(self, state, depth, alpha, beta):
         # print("doing max at depth:", depth)
         """Maximizing player's (MAX) value function in Minimax."""
         if abs(evaluate(state)) == 10 or (depth != -1 and depth == 0):
@@ -64,13 +64,16 @@ class Minimax:
             #depth handling not ideal maybe should change
             next_depth = depth - 1 if depth != -1 else depth
             # print("FROM MAX next depth:", next_depth)
-            eval_score = self.min_value(next_state, next_depth)
+            eval_score = self.min_value(next_state, next_depth, alpha, beta)
             # print("Max eval score:", eval_score)
             max_eval = max(max_eval, eval_score)
+            if max_eval >= beta: # Beta cutoff
+                return max_eval
+            alpha = max(alpha, max_eval)
         return max_eval
 
     # Best move always returns -1, -1, needs to be fixed
-    def min_value(self, state, depth):
+    def min_value(self, state, depth, alpha, beta):
         """Minimizing player's (MIN) value function in Minimax."""
         # print("doing min at depth:", depth)
         if abs(evaluate(state)) == 10 or (depth != -1 and depth == 0):
@@ -92,9 +95,11 @@ class Minimax:
                 self.game.make_move(next_state, move[0], move[1], 'dog', (dog_pos))
                 next_depth = depth - 1 if depth != -1 else depth
                 # print("next depth:", next_depth)
-                eval_score = self.max_value(next_state, next_depth)
+                eval_score = self.max_value(next_state, next_depth, alpha, beta) # MAX's response to MIN's move
                 min_eval = min(min_eval, eval_score)
-                # print("Returning min eval score:", eval_score)
+                if min_eval <= alpha: # Alpha cutoff
+                    return min_eval
+                beta = min(beta, min_eval)
         return min_eval
 
     # 6. Get Best Move Function
@@ -103,6 +108,8 @@ class Minimax:
         best_move_row = -1
         best_move_col = -1
         max_eval = -float('inf')
+        alpha = -float('inf') # Initialize alpha
+        beta = float('inf')  # Initialize beta
         key = find_tiger(self.game.board)
         # count = 0
         for move in self.get_valid_moves(self.game.board, 'tiger').get(key, []):
@@ -113,13 +120,14 @@ class Minimax:
             next_state = self.copy_state(self.game.board)
             self.game.make_move(next_state, move[0], move[1], 'tiger')
             next_depth = depth - 1 if depth != -1 else depth
-            eval_score = self.min_value(next_state, next_depth) # MIN's response to MAX's move
+            eval_score = self.min_value(next_state, next_depth, alpha, beta) # MIN's response to MAX's move
             # print("Eval score for move:", move, "is", eval_score)
             if eval_score > max_eval:
                 max_eval = eval_score
                 best_move_row = move[0]
                 best_move_col = move[1]
-
+             
+            alpha = max(alpha, max_eval)
         return [best_move_row, best_move_col]
 
     # Helper function to copy the state state (for minimax simulation)
