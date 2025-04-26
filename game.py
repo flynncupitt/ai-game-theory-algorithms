@@ -13,10 +13,12 @@ def set_turn(new_turn):
     global turn
     turn = new_turn
 
+# Function to check if the game is over
 def evaluate(current_state):
     if enough_dogs_killed(current_state):
         return 10  # Tiger wins
     
+    #Checking if the tiger is trapped by dogs
     r, c = find_tiger(current_state)
     for dr in [-1, 0, 1]:
         for dc in [-1, 0, 1]:
@@ -27,6 +29,7 @@ def evaluate(current_state):
                 return 0 # Tiger can still move
     return -10  # Tiger loses (can't move)
 
+# Locates the tiger on the board and returns position, or the starting position if not found
 def find_tiger(board):
     for row in range(len(board)):
         for col in range(len(board[row])):
@@ -35,6 +38,7 @@ def find_tiger(board):
     calc_start = (BOARD_SIZE - 1) // 2
     return (calc_start, calc_start)
 
+# Helper function to choose a random dog for random player turn
 def find_random_dog(board):
     dog_positions = []
     for row in range(len(board)):
@@ -47,6 +51,7 @@ def find_random_dog(board):
     print("No dogs found on the board")
     return None
 
+# Dynamically determines if enough dogs killed (based on board size variable and dogs required to win)
 def enough_dogs_killed(board):
     dogs_alive = 0
     for row in board:
@@ -59,6 +64,7 @@ def enough_dogs_killed(board):
     
     return False
 
+# Counts the number of dogs killed, allows for dynamic board size
 def count_dogs_killed(board):
     dogs_alive = 0
     for row in board:
@@ -67,9 +73,12 @@ def count_dogs_killed(board):
                 dogs_alive += 1
     
     return (4*(BOARD_SIZE - 1)) - dogs_alive
-    
+
+# Attempt to kill dogs based on tiger's position
 def try_kill_dogs(board):
         r, c = find_tiger(board)
+
+        # Check if adjacent dogs in same row as tiger
         left = c - 1
         right = c + 1
         if is_valid_pos(r, left) and is_valid_pos(r, right):
@@ -78,6 +87,7 @@ def try_kill_dogs(board):
                     board[r][left] = None
                     board[r][right] = None
 
+        #Check if adjacent dogs in same column as tiger
         up = r - 1
         down = r + 1
         if is_valid_pos(up, c) and is_valid_pos(down, c):
@@ -85,7 +95,8 @@ def try_kill_dogs(board):
                 if no_adjacent_in_line(board, (up, c), -1, 0) and no_adjacent_in_line(board, (down, c), 1, 0):
                     board[up][c] = None
                     board[down][c] = None
-                    
+
+        # Check for diagonal dogs adjacent to tiger (section is AI generated)            
         diagonals = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
         for dr, dc in diagonals:
             diag1 = (r + dr, c + dc)
@@ -96,6 +107,7 @@ def try_kill_dogs(board):
                         board[diag1[0]][diag1[1]] = None
                         board[diag2[0]][diag2[1]] = None
 
+# Helper function to check for dogs adjacent to ones that are already next to a tiger (game rule)
 def no_adjacent_in_line(board, pos, dr, dc):
     r, c = pos
     adj1 = (r + dr, c + dc)

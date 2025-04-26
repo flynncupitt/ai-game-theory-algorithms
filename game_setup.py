@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
+### Menu screen that displays before beginning the game, allowing the user to select game settings.
 class GameSetup(tk.Toplevel):
     def __init__(self, master, start_callback):
         super().__init__(master)

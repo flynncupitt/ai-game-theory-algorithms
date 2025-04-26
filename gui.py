@@ -25,6 +25,7 @@ class GameGUI:
         self.ai = Minimax(self)
         self.depth = 3
 
+    # Redraws the board when needed
     def draw_board(self):
             self.canvas.delete("all")
             for i in range(BOARD_SIZE):
@@ -42,18 +43,21 @@ class GameGUI:
 
             self.draw_piece(*find_tiger(self.board), 'white')
 
+    # Helper function for drawing pieces on the board
     def draw_piece(self, row, col, color):
         x = col * TILE_SIZE + TILE_SIZE // 2
         y = row * TILE_SIZE + TILE_SIZE // 2
         r = TILE_SIZE // 3
         self.canvas.create_oval(x-r, y-r, x+r, y+r, fill=color, outline="black")
 
+    # Updates label when turn changes
     def update_current_player_label(self):
         if get_turn() == 'tiger':
             self.current_player_label.config(text="Current Player: Tiger (Thinking...)")
         else:
             self.current_player_label.config(text="Current Player: Dog")
 
+    # Handles move making on given board for players
     def make_move(self, board_state, row, col, player, chosenDog=None):
         if player == 'tiger':
             tr, tc = find_tiger(board_state)
@@ -61,7 +65,14 @@ class GameGUI:
             board_state[row][col] = 'tiger'
             try_kill_dogs(board_state)
             set_turn('dog')
-       
+        elif player == 'dog':
+            if board_state[row][col] is None:
+                if chosenDog is not None:
+                    board_state[chosenDog[0]][chosenDog[1]] = None
+                board_state[row][col] = 'dog'
+                set_turn('tiger')
+    
+    # Handles tiger's turn and GUI updates
     def play_tiger_turn(self):
         root.update()
         time.sleep(0.3)
@@ -73,43 +84,35 @@ class GameGUI:
                     messagebox.showinfo("Game Over", "Tiger wins!")
                     self.root.quit()
         else:
-            set_turn('dog')
             self.update_current_player_label()
             self.draw_board()
             self.play_dog_turn(self.board)
 
+    # Handles dog's turn and GUI updates
     def play_dog_turn(self, board_state):
-        if evaluate(self.board) == -10:
-            messagebox.showinfo("Game Over", "Dogs win!")
+        root.update()
+        time.sleep(0.7)
+        valid_dog_moves = self.ai.get_valid_moves(board_state, 'dog')
+        if not valid_dog_moves:
+            messagebox.showinfo("Error", "No remaining dog moves!")
             self.root.quit()
-        else:
-            root.update()
-            time.sleep(1)
-            valid_dog_moves = self.ai.get_valid_moves(board_state, 'dog')
-            if not valid_dog_moves:
-                messagebox.showinfo("Error", "No remaining dog moves!")
-                self.root.quit()
-                return
-            
-            random_dog = random.choice(list(valid_dog_moves.keys()))
-            random_move = random.choice(valid_dog_moves[random_dog])
-            current_row, current_column = random_dog
-            target_row, target_column = random_move
-            if abs(target_row - current_row) <= 1 and abs(target_column - current_column) <= 1 and board_state[target_row][target_column] is None:
-                board_state[current_row][current_column] = None
-                board_state[target_row][target_column] = 'dog'
-                self.selected = None
-                if evaluate(board_state) == -10:
-                    messagebox.showinfo("Game Over", "Dogs wins!")
-                    self.root.quit()
-                set_turn('tiger')
-                self.update_current_player_label()
-                self.draw_board()
-                root.update()
-                self.play_tiger_turn()
-            else:
-                print("Invalid dog move")
+            return
         
+        #Choose random dog from available dogs to make move
+        random_dog = random.choice(list(valid_dog_moves.keys()))
+        random_move = random.choice(valid_dog_moves[random_dog])
+        self.make_move(board_state, random_move[0], random_move[1], 'dog', random_dog)
+
+        if evaluate(board_state) == -10:
+            messagebox.showinfo("Game Over", "Dogs wins!")
+            self.root.quit()
+        set_turn('tiger')
+        self.update_current_player_label()
+        self.draw_board()
+        root.update()
+        self.play_tiger_turn()
+
+# Starts the game with the given settings    
 def start_game_with_settings(settings):
     game = GameGUI(root)
     center = BOARD_SIZE // 2

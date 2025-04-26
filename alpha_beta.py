@@ -4,7 +4,9 @@ from game import evaluate, find_tiger
 class AlphaBeta:
     def __init__(self, game):
         self.game = game
-
+    
+    # This function was originally AI generated, with manual changes made to the directions and returned data types
+    # Returns a dictionary of valid moves for the player where key is current position and value is a list of possible moves
     def get_valid_moves(self, state, player):
         valid_moves = {}
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -32,6 +34,9 @@ class AlphaBeta:
 
         return valid_moves
     
+    
+    ### Minimax algorithm functions with alpha-beta pruning ###
+
     def max_value(self, state, depth, alpha, beta):
 
         if abs(evaluate(state)) == 10 or (depth != -1 and depth == 0):
